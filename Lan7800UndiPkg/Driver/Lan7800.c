@@ -387,11 +387,11 @@ Lan7800GetEepromLength(
 			*Length = 0;
 			return Status;
 		}
-		if (memcmp(Save, SaveEach, 4) == 0) {
+		if (CompareMem(Save, SaveEach, 4) == 0) {
 			*Length = i;
 			break;
 		}
-		memset(SaveEach, 0, sizeof(SaveEach));
+		SetMem(SaveEach, 0, sizeof(SaveEach));
 	}
 	return EFI_SUCCESS;
 }

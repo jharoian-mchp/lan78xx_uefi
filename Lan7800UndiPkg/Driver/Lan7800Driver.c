@@ -215,13 +215,13 @@ Lan7800DriverInitialize(
 
 	//Copy appropriate device name to DeviceName 
 	if (Adapter->IdProduct == 0x7800) {
-		memcpy(Adapter->DeviceName, L"LAN7800", 14);
+		CopyMem(Adapter->DeviceName, L"LAN7800", 14);
 	} else if (Adapter->IdProduct == 0x7801) {
-		memcpy(Adapter->DeviceName, L"LAN7801", 14);
+		CopyMem(Adapter->DeviceName, L"LAN7801", 14);
 	} else if (Adapter->IdProduct == 0x7850) {
-		memcpy(Adapter->DeviceName, L"LAN7850", 14);
+		CopyMem(Adapter->DeviceName, L"LAN7850", 14);
 	} else if (Adapter->IdProduct == 0x780a) {
-		memcpy(Adapter->DeviceName, L"LAN780A", 14);
+		CopyMem(Adapter->DeviceName, L"LAN780A", 14);
 	}
 	//Get interface descriptor
 	Status = UsbIo->UsbGetInterfaceDescriptor(UsbIo, &InterfaceDescriptor);
