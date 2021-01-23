@@ -25,7 +25,8 @@
 #include "Lan7800Driver.h"
 
 //int DebugMode = DBG_DRV | DBG_LAN | DBG_UNDI | DBG_WARNING | DBG_ERROR;
-int DebugMode = 0;
+int DebugMode = DBG_WARNING | DBG_ERROR;
+//int DebugMode = 0;
 
 UINTN
 AsciiInternalPrint(

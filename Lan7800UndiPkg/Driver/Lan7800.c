@@ -182,6 +182,10 @@ Lan7800ReadPhyRegister(
 
 	*Data = (UINT32) (Value & 0xFFFF);
 
+//	yo BUGBUG
+	if (*Data != 0x79ed)
+		DEBUGPRINT(DBG_ERROR, ("%a index %d data 0x%x\n", __FUNCTION__, Index, (UINT32) (Value & 0xFFFF)));
+
 	return EFI_SUCCESS; 
 }
 
@@ -613,6 +617,8 @@ Lan7800InitMacAddress(
 
 	//DEBUGPRINT(DBG_LAN, ("MacAddress = %02x:%02x:%02x:%02x:%02x:%02x\n",
 		//MacAddress[0], MacAddress[1], MacAddress[2], MacAddress[3], MacAddress[4], MacAddress[5]));
+	DEBUGPRINT(DBG_ERROR, ("MacAddress = %02x:%02x:%02x:%02x:%02x:%02x\n",	// yo BUGBUG
+		MacAddress[0], MacAddress[1], MacAddress[2], MacAddress[3], MacAddress[4], MacAddress[5]));
 
 	return Status;
 }
@@ -623,18 +629,22 @@ Lan7800PhyInitialize(
 	)
 {
 	UINT32	Value;
+	UINT32 count = 0;
 	EFI_STATUS   Status = EFI_SUCCESS;
 
 	DEBUGPRINT(DBG_LAN, ("%a\n", __FUNCTION__));
+	DEBUGPRINT(DBG_ERROR, ("%a\n", __FUNCTION__)); // yo BUGBUG
 
 	// Auto-neg advertisement
 	Status = Lan7800ReadPhyRegister(Adapter, Adapter->PhyId, PHY_AUTONEG_ADV, &Value);
 	if (EFI_ERROR(Status)) {
+		DEBUGPRINT(DBG_ERROR, ("%a Lan7800ReadPhyRegister ERROR\n", __FUNCTION__)); // yo BUGBUG
 		return Status;
 	}
 	Value |= (NWAY_AR_ALL_CAPS_ | NWAY_AR_ASM_DIR_ | NWAY_AR_PAUSE_);
 	Status = Lan7800WritePhyRegister(Adapter, Adapter->PhyId, PHY_AUTONEG_ADV, Value);
 	if (EFI_ERROR(Status)) {
+		DEBUGPRINT(DBG_ERROR, ("%a Lan7800WritePhyRegister ERROR\n", __FUNCTION__)); // yo BUGBUG
 		return Status;
 	}
 
@@ -661,6 +671,25 @@ Lan7800PhyInitialize(
 	if (EFI_ERROR(Status)) {
 		return Status;
 	}
+	
+	// yo BUGBUG check autoneg done
+	while (count <100) {
+		Status = Lan7800ReadPhyRegister(Adapter, Adapter->PhyId, PHY_STATUS, &Value);
+		if (EFI_ERROR(Status)) {
+			return Status;
+		}
+		if (Value & MII_SR_AUTONEG_COMPLETE_)
+			break;
+		count++;
+		gBS->Stall(20000);
+	}
+	if (count == 100)
+		DEBUGPRINT(DBG_ERROR, ("%a timeout autoneg\n", __FUNCTION__)); // yo BUGBUG
+			
+	// BUGBUG done
+	
+	DEBUGPRINT(DBG_ERROR, ("%a success\n", __FUNCTION__)); // yo BUGBUG
+
 
 	return Status;
 }
@@ -816,6 +845,7 @@ Lan7800Reset(
 	EFI_STATUS	Status = EFI_SUCCESS;
 
 	DEBUGPRINT(DBG_LAN, ("%a\n", __FUNCTION__));
+	DEBUGPRINT(DBG_ERROR, ("%a\n", __FUNCTION__)); // yo BUGBUG
 
 	//Do lite reset
 	Status = Lan7800ReadRegister(Adapter, HW_CFG, &Value);
@@ -1023,6 +1053,9 @@ Lan7800Reset(
 	if (EFI_ERROR(Status)) {
 		return Status;
 	}
+	
+	DEBUGPRINT(DBG_ERROR, ("%a done\n", __FUNCTION__)); // yo BUGBUG
+
 	return Status;
 }
 
@@ -1089,10 +1122,35 @@ Lan7800Transmit(
 				Adapter->UsbEndpointInfo.EndpointBulkOut,
 				Adapter->TxBuffer,
 				&UrbLen,
-				500,
+				500,	// miliseconds
 				&UsbStatus
 				);
 
+	// yo BUGBUG
+	if (EFI_ERROR(Status) || (UsbStatus != EFI_USB_NOERROR)) {
+		DEBUGPRINT(DBG_ERROR,("%a UsbStatus 0x%x\n", __FUNCTION__, UsbStatus));
+	}
+	else {
+		if (UsbStatus == EFI_SUCCESS) {
+			DEBUGPRINT(DBG_ERROR,("%a UsbStatus success\n", __FUNCTION__, UsbStatus));
+		}
+		if (UsbStatus == EFI_TIMEOUT) {
+			DEBUGPRINT(DBG_ERROR,("%a UsbStatus timeout\n", __FUNCTION__, UsbStatus));
+		}
+		if (UsbStatus == EFI_DEVICE_ERROR) {
+			DEBUGPRINT(DBG_ERROR,("%a UsbStatus device error\n", __FUNCTION__, UsbStatus));
+		}
+		if (UsbStatus == EFI_INVALID_PARAMETER) {
+			DEBUGPRINT(DBG_ERROR,("%a UsbStatus ubvalid param\n", __FUNCTION__, UsbStatus));
+		}
+		if (UsbStatus == EFI_OUT_OF_RESOURCES) {
+			DEBUGPRINT(DBG_ERROR,("%a UsbStatus out of resource\n", __FUNCTION__, UsbStatus));
+		}
+		if (UsbStatus == EFI_USB_NOERROR) {
+			DEBUGPRINT(DBG_ERROR,("%a UsbStatus usb no error\n", __FUNCTION__, UsbStatus));
+		}
+	}
+	
 	//Store the buffer address, need to indicate this buffer in getstatus for reuse
 	Adapter->TxUndiBuffer = FrameAddr;
 	Adapter->UndiDeviceInterruptStatus |= PXE_STATFLAGS_GET_STATUS_TRANSMIT;
@@ -1131,6 +1189,22 @@ Lan7800Receive(
 		//Print(L"Lan7800Receive error\n");
 		//Adapter->RxBufferDataLen = 0;
 		//Adapter->RxBufferDataPresent = 0;
+		// yo BUGBUG
+		if (UsbStatus == EFI_TIMEOUT) {
+			DEBUGPRINT(DBG_ERROR,("%a UsbStatus timeout\n", __FUNCTION__, UsbStatus));
+		}
+		if (UsbStatus == EFI_DEVICE_ERROR) {
+			DEBUGPRINT(DBG_ERROR,("%a UsbStatus device error\n", __FUNCTION__, UsbStatus));
+		}
+		if (UsbStatus == EFI_INVALID_PARAMETER) {
+			DEBUGPRINT(DBG_ERROR,("%a UsbStatus ubvalid param\n", __FUNCTION__, UsbStatus));
+		}
+		if (UsbStatus == EFI_OUT_OF_RESOURCES) {
+			DEBUGPRINT(DBG_ERROR,("%a UsbStatus out of resource\n", __FUNCTION__, UsbStatus));
+		}
+		if (UsbStatus == EFI_USB_NOERROR) {
+			DEBUGPRINT(DBG_ERROR,("%a UsbStatus usb no error\n", __FUNCTION__, UsbStatus));
+		}
 		return Status;
 	}
 
@@ -1349,6 +1423,9 @@ Lan7800SetMulticast(
 		Lan7800StartTransmit(Adapter);
 		Lan7800StartReceive(Adapter);
 		Adapter->RxTxPathEnabled = 1;
+		
+		DEBUGPRINT(DBG_ERROR, ("%a, RxTxPathEnabled\n", __FUNCTION__)); // yo BUGBUG
+
 	}
 
 	Adapter->MulticastDone = 1; // set the flag so that we do not repeat SetMulticast
@@ -1403,6 +1480,7 @@ Lan7800LinkCheck(
 	//read twice 
 	Status = Lan7800ReadPhyRegister(Adapter, Adapter->PhyId, PHY_STATUS, &Value);
 	if (EFI_ERROR(Status)) {
+		DEBUGPRINT(DBG_ERROR, ("%a Lan7800ReadPhyRegister ERROR\n", __FUNCTION__)); // yo BUGBUG
 		return Status;
 	}
 	Status = Lan7800ReadPhyRegister(Adapter, Adapter->PhyId, PHY_STATUS, &Value);

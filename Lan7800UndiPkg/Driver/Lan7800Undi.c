@@ -439,6 +439,7 @@ Lan7800UndiPxeInitialize(
 	EFI_STATUS			Status = EFI_SUCCESS;
 
 	DEBUGPRINT(DBG_UNDI, ("%a\n", __FUNCTION__));
+	DEBUGPRINT(DBG_ERROR, ("%a\n", __FUNCTION__));	// yo BUGBUG
 
 	CpbPtr = (PXE_CPB_INITIALIZE *) (UINTN)Cdb->CPBaddr;
 	DbPtr = (PXE_DB_INITIALIZE *) (UINTN)Cdb->DBaddr;
@@ -462,7 +463,9 @@ Lan7800UndiPxeInitialize(
 	Adapter->RxBufferDataLen = 0;
 	Adapter->RxBufferDataStart = Adapter->RxBuffer;
 
-	if (Cdb->OpFlags & PXE_OPFLAGS_INITIALIZE_DETECT_CABLE) {
+	// yo BUGBUG 1/15/2021 commented out the condition to force link check at init
+	// Even after I wait for autoneg, this flag seems to be always false
+//	if (Cdb->OpFlags & PXE_OPFLAGS_INITIALIZE_DETECT_CABLE) {
 		//do link check
 		Status = Lan7800LinkCheck(Adapter, &LinkDetected);
 		if (EFI_ERROR(Status)) {
@@ -474,11 +477,16 @@ Lan7800UndiPxeInitialize(
 			StatFlags = StatFlags | PXE_STATFLAGS_INITIALIZED_NO_MEDIA;
 			Print(L"Lan7800UndiPxeInitialize: Link down\n");
 			DEBUGPRINT(DBG_UNDI, ("Lan7800UndiPxeInitialize: No link\n", __FUNCTION__));
+			DEBUGPRINT(DBG_ERROR, ("Lan7800UndiPxeInitialize: No link\n", __FUNCTION__)); // yo BUGBUG
 		} else {
 			Print(L"Lan7800UndiPxeInitialize: Link Up\n");
-			DEBUGPRINT(DBG_UNDI, ("Lan7800UndiPxeInitialize: Link Up\n", __FUNCTION__));
+//			DEBUGPRINT(DBG_UNDI, ("Lan7800UndiPxeInitialize: Link Up\n", __FUNCTION__));
+			DEBUGPRINT(DBG_ERROR, ("Lan7800UndiPxeInitialize: Link Up\n", __FUNCTION__)); // yo BUGBUG
 		}
-	}
+//	}
+	//else { 
+		//DEBUGPRINT(DBG_ERROR, ("Lan7800UndiPxeInitialize: PXE_OPFLAGS_INITIALIZE_DETECT_CABLE false\n", __FUNCTION__)); // yo BUGBUG
+	//}
 	Adapter->UndiState = UNDI_STATE_INITIALIZED;
   
 	Cdb->StatFlags = StatFlags | PXE_STATFLAGS_COMMAND_COMPLETE;
@@ -549,6 +557,7 @@ Lan7800UndiPxeReceiveFilters(
 	UINTN					MulticastLength = 0;
 	
 	DEBUGPRINT(DBG_UNDI, ("%a\n", __FUNCTION__));
+//	DEBUGPRINT(DBG_ERROR, ("%a %x\n", __FUNCTION__, Cdb->OpFlags)); // yo BUGBUG
 
 	//Check if READ
 	if (Cdb->OpFlags == PXE_OPFLAGS_RECEIVE_FILTER_READ) {
@@ -642,6 +651,9 @@ Lan7800UndiPxeReceiveFilters(
 		}
 		Adapter->ReceiveFilterFlags |= PXE_OPFLAGS_RECEIVE_FILTER_DISABLE;
 	}
+// yo
+	else 
+	DEBUGPRINT(DBG_ERROR, ("%a %x\n", __FUNCTION__, Cdb->OpFlags)); // yo BUGBUG
 
 	Lan7800SetMulticast(Adapter);
 
@@ -805,10 +817,9 @@ Lan7800UndiPxeGetStatus(
 	PXE_STATFLAGS		StatFlags = 0;
 //	UINT16				LinkDetected;
 	EFI_STATUS			Status = EFI_SUCCESS;
-	UINT16				Size;
-	UINT32				RxCmdA;
   
 	DEBUGPRINT(DBG_UNDI, ("%a\n", __FUNCTION__));
+//	DEBUGPRINT(DBG_ERROR, ("%a %x\n", __FUNCTION__, Cdb->OpFlags)); // yo BUGBUG
 
 	if ((Cdb->DBsize < 16) || (Cdb->DBsize % 8)) {
 		DEBUGPRINT(DBG_ERROR, ("%a: Invalid CDB\n", __FUNCTION__));
@@ -821,23 +832,30 @@ Lan7800UndiPxeGetStatus(
 
 	//Try to receive a packet
 	if (Adapter->RxTxPathEnabled && (Adapter->RxBufferDataPresent == 0)) {
-		Status = Lan7800Receive(Adapter);
+		Status = Lan7800Receive(Adapter);	// yo do USB 
 	}
+//	else
+	//{
+//	DEBUGPRINT(DBG_ERROR, ("%a %x\n", __FUNCTION__, Adapter->RxBufferDataPresent)); // yo BUGBUG
+	//}
 
 	//Check the link status
 	
-	// 11/24/2020 do not check link status here to improve performance
+	// bugbug commented out (uncomment this block for debug version 1/15/2021)
 	/*
 	if (Cdb->OpFlags & PXE_OPFLAGS_GET_MEDIA_STATUS) {
 		Status = Lan7800LinkCheck(Adapter, &LinkDetected);
 		if (EFI_ERROR(Status)) {
+			DEBUGPRINT(DBG_ERROR, ("Lan7800UndiPxeGetStatus: Lan7800LinkCheck failed\n", __FUNCTION__));
 			goto UndiPxeGetStatusError;
 		}
 		if (LinkDetected == 0) {
 			StatFlags |= PXE_STATFLAGS_INITIALIZED_NO_MEDIA;
 			DEBUGPRINT(DBG_UNDI, ("Lan7800UndiPxeGetStatus: No link\n", __FUNCTION__));
+			DEBUGPRINT(DBG_ERROR, ("Lan7800UndiPxeGetStatus: No link\n", __FUNCTION__));
 		} else {
 			DEBUGPRINT(DBG_UNDI, ("Lan7800UndiPxeGetStatus: Link Up\n", __FUNCTION__));
+			DEBUGPRINT(DBG_ERROR, ("Lan7800UndiPxeGetStatus: Link Up\n", __FUNCTION__));
 		}
 	}
 	*/
@@ -856,13 +874,20 @@ Lan7800UndiPxeGetStatus(
 	//Indicate pending interrupt status (in our case indicate any transmit completion and any receive packet exists)
 	if (Cdb->OpFlags & PXE_OPFLAGS_GET_INTERRUPT_STATUS) {
 		if (Adapter->RxBufferDataPresent) {
-			// onlly process the first frame length
-			RxCmdA = *(UINT32 *)Adapter->RxBufferDataStart;
-			Size = RxCmdA & RX_CMD_A_LEN_MASK_;
+// onlly process the first frame length
+//local pointer compy buufer datastart and check cmdA for lengh
+//			Adapter->bufferstart
+//			DbPtr->RxFrameLen = (PXE_UINT32) Adapter->RxBufferDataLen;
+		//extract frame
+		UINT16		Size;
+		UINT32		RxCmdA;
+		RxCmdA = *(UINT32 *)Adapter->RxBufferDataStart;
+		Size = RxCmdA & RX_CMD_A_LEN_MASK_;
 
-			// this size change 11/23/2020 makes 130Kbps to 35Mbps (max performance)
+// this change 11/23 makes 130Kbps to 35Mbps
 			DbPtr->RxFrameLen = (PXE_UINT32) Size;
 			DEBUGPRINT(DBG_UNDI, ("Lan7800UndiPxeGetStatus: RxFrameLen=%d\n", DbPtr->RxFrameLen));
+	//		DEBUGPRINT(DBG_ERROR, ("Lan7800UndiPxeGetStatus: RxBufferDataLen=%d Size %d\n", (PXE_UINT32) Adapter->RxBufferDataLen, DbPtr->RxFrameLen)); // yo BUGBUG
 		} else {
 			DbPtr->RxFrameLen = 0;
 		}
@@ -956,9 +981,11 @@ Lan7800UndiPxeTransmit(
 	PXE_CPB_TRANSMIT_FRAGMENTS	*CpbFragTransmit;
 
 	DEBUGPRINT(DBG_UNDI, ("%a\n", __FUNCTION__));
+	DEBUGPRINT(DBG_ERROR, ("%a\n", __FUNCTION__)); //yo BUGBUG
 
 	if ((Cdb->OpFlags & PXE_OPFLAGS_TRANSMIT_FRAGMENTED) == PXE_OPFLAGS_TRANSMIT_FRAGMENTED) {
 		DEBUGPRINT(DBG_UNDI, ("%a: PXE_OPFLAGS_TRANSMIT_FRAGMENTED not supported\n", __FUNCTION__));
+		DEBUGPRINT(DBG_ERROR, ("%a: PXE_OPFLAGS_TRANSMIT_FRAGMENTED not supported\n", __FUNCTION__)); //yo BUGBUG
 		// Fragment packet
 		CpbFragTransmit = (PXE_CPB_TRANSMIT_FRAGMENTS *)(UINTN)Cdb->CPBaddr;
 		//FIXME:
@@ -967,6 +994,7 @@ Lan7800UndiPxeTransmit(
 
 		//Current tx buffer transmit is not complete (unless it is indicated to undi in get status)
 		if (Adapter->TxUndiBuffer != NULL) {
+			DEBUGPRINT(DBG_ERROR, ("%a TxUndiBuffer is not null\n", __FUNCTION__)); //yo BUGBUG
 			goto TransmitError;
 		}
 		// NonFragmented packet
@@ -977,6 +1005,7 @@ Lan7800UndiPxeTransmit(
 	}
  
 	if (EFI_ERROR(Status)) {
+		DEBUGPRINT(DBG_ERROR, ("%a EFI error!\n", __FUNCTION__)); //yo BUGBUG
 		goto TransmitError;
 	}
 
@@ -1007,6 +1036,7 @@ Lan7800UndiPxeReceive(
 	ETHER_HEAD			*EtherHeader;
   	
 	DEBUGPRINT(DBG_UNDI, ("%a\n", __FUNCTION__));
+//	DEBUGPRINT(DBG_ERROR, ("%a %x\n", __FUNCTION__, Cdb->OpFlags)); // yo BUGBUG
 
 	CpbReceive = (PXE_CPB_RECEIVE *)(UINTN)Cdb->CPBaddr;
 	CpbBuffer = (UINT8 *)(UINTN)CpbReceive->BufferAddr;
@@ -1052,6 +1082,7 @@ Lan7800UndiPxeReceive(
 	return;
   
 UndiPxeReceiveError:
+//DEBUGPRINT(DBG_ERROR, ("%a %x\n", __FUNCTION__, Status)); // yo BUGBUG // will fail if nothing to rcv
 
 	Cdb->StatFlags = PXE_STATFLAGS_COMMAND_FAILED;
 	Cdb->StatCode = PXE_STATCODE_INVALID_CPB;
@@ -1075,13 +1106,29 @@ Lan7800UndiPxeReceiveData(
 
 	DEBUGPRINT(DBG_UNDI, ("%a\n", __FUNCTION__));
 
-	// 11/24/2020 add call to Lan7800Receive here.
+//BUGBUG YO 9500 HAS UsbNetDoReceive here.
 	if (Adapter->RxTxPathEnabled && (Adapter->RxBufferDataPresent == 0)) {
-		Status = Lan7800Receive(Adapter);	// do USB bulktransfer 
+		Status = Lan7800Receive(Adapter);	// yo do USB 
+	//		DEBUGPRINT(DBG_ERROR, ("Lan7800Receive added\n")); //yo bugbug
 	}
+//	else
+	//{
+//	DEBUGPRINT(DBG_ERROR, ("%a %x\n", __FUNCTION__, Adapter->RxBufferDataPresent)); // yo BUGBUG
+	//}
+//		Status = Lan7800Receive(Adapter);	// yo do USB 
+//  if (EFI_ERROR(Status)) {
+	//	if (Status != EFI_TIMEOUT)
+  //  DEBUGPRINT(DBG_ERROR, (" %a  Lan7800Receive Status=%r %d\n", __FUNCTION__, Status, Status));
+  //  return Status;
+ // }    
+
 
 	//data present, copy the data to Cpb buffer
 	if (Adapter->RxBufferDataPresent) {
+		
+//	DEBUGPRINT(DBG_ERROR, ("%a buff len %d datastart %d\n", __FUNCTION__, BufferLen, *(UINT32 *)Adapter->RxBufferDataStart)); // yo BUGBUG
+		// buff len 1522 bugbug
+
 		//extract frame
 		RxCmdA = *(UINT32 *)Adapter->RxBufferDataStart;
 		Size = RxCmdA & RX_CMD_A_LEN_MASK_;
@@ -1090,6 +1137,7 @@ Lan7800UndiPxeReceiveData(
 		if (RxCmdA & RX_CMD_A_RED_) {
 			Adapter->RxBufferDataLen = 0;
 			Adapter->RxBufferDataPresent = 0;
+//			DEBUGPRINT(DBG_ERROR, ("exact frame\n")); //yo bugbug
 			return Status;
 		}
 
@@ -1103,16 +1151,26 @@ Lan7800UndiPxeReceiveData(
 		//Set the actual data len we received
 		*FrameLen = Size;
 		
+//			DEBUGPRINT(DBG_ERROR, ("RxBufferDataLen %d size %d\n", Adapter->RxBufferDataLen,Size)); //yo bugbug
 		Adapter->RxBufferDataLen -= (10 + Size);
-		if (Adapter->RxBufferDataLen) {
+	//			DEBUGPRINT(DBG_ERROR, ("RxBufferDataLen %d size %d\n", Adapter->RxBufferDataLen,Size)); //yo bugbug
+	if (Adapter->RxBufferDataLen) {
+//			DEBUGPRINT(DBG_ERROR, ("RxBufferDataLen %d Alignment %d\n", Adapter->RxBufferDataLen,Alignment)); //yo bugbug
 			Adapter->RxBufferDataLen -= Alignment;
 			//Set the RxBufferStart to next packet
 			Adapter->RxBufferDataStart += (10 + Size + Alignment);
 			//Since we have data left in the Rx buffer indicate so
 			Adapter->UndiDeviceInterruptStatus |= PXE_STATFLAGS_GET_STATUS_RECEIVE;
+//			DEBUGPRINT(DBG_ERROR, ("size %d DataStart %d\n", Size,*(UINT32 *)Adapter->RxBufferDataStart)); //yo bugbug
+		// size 1502 bugbug
+		//	PacketDump(Buffer, 0X30);
+
 		} else {
+	//		DEBUGPRINT(DBG_ERROR, ("no more rx data\n")); //yo bugbug
 			Adapter->RxBufferDataPresent = 0;
 		}
+//		if (Buffer[0x2a] == 0 && Buffer[0x2b] == 3) { // yo check tftp data opcode
+	//				PacketDump(Buffer, 0X30);
 		//PacketDump(Buffer, Adapter->RxBufferDataLen);
 	}
 
@@ -1253,6 +1311,7 @@ Lan7800UndiProtocolInitialize(
 	LAN7800_ADAPTER_DATA	*Adapter;
 
 	DEBUGPRINT(DBG_UNDI, ("%a\n", __FUNCTION__));
+	DEBUGPRINT(DBG_ERROR, ("%a\n", __FUNCTION__)); // yo BUGBUG
 
 	if (pAdapterInstance == NULL)
 		return EFI_INVALID_PARAMETER;
